@@ -152,49 +152,49 @@ def server_operation(server, WSH, service_name):
         server.stop(0)
 
 
-cpdef prepareFeatureStream_1D_c(module_dir,db_type,session,StatusData,status_datas_schema,Features,int NumFeatures):                       # frame type values: 1D , 2D (for example I/Q data)
-
-    module = 'prepareFeatureStream_1D_c'
-
-    cdef:
-        int i,NumRemainElements,counter
-        list listFeatures = []                                                                 
-        list listFrames = []         
+cpdef numpy.ndarray prepareFeatureStream_1D_c(str module_dir, str db_type, object session, object StatusData, object status_datas_schema, list Features, int NumFeatures):
+    # frame type values: 1D , 2D (for example I/Q data)
+    cdef int i, NumRemainElements, counter
+    cdef list listFeatures = []                                                                 
+    cdef list listFrames = []
 
     if NumFeatures > 0:                                          
-        NumRemainElements = len(Features)%(NumFeatures)      
-        if NumRemainElements!=0:                                                     # if there are some extra elements in received buffer
-            Features = Features[:-NumRemainElements]                                 # delete the extra elements
-        NumFrames = int(len(Features)/(NumFeatures))
+        NumRemainElements = len(Features) % NumFeatures      
+        if NumRemainElements != 0:                                                     # if there are some extra elements in received buffer
+            Features = Features[:-NumRemainElements]                                   # delete the extra elements
+        NumFrames = int(len(Features) / NumFeatures)
     else:
         NumRemainElements = 0
         NumFrames = 0
 
-    logging_text = ' Length of features data buffer: '+str(len(Features))
+    logging_text = ' Length of features data buffer: ' + str(len(Features))
     if db_type == "File":
-        write_log_api_file(module_dir,module,logging_text)  
+        write_log_api_file(module_dir, 'prepareFeatureStream_1D_c', logging_text)  
     else:
-        write_log_api(module_dir,session,StatusData,status_datas_schema,module,logging_text)
-    logging_text = ' No. of 1D frames: '+str(int(NumFrames))    
-    if db_type == "File":
-        write_log_api_file(module_dir,module,logging_text)  
-    else:
-        write_log_api(module_dir,session,StatusData,status_datas_schema,module,logging_text)
-    logging_text = ' No. of remaining 1D features after the last frame: '+str(int(NumRemainElements))    
-    if db_type == "File":
-        write_log_api_file(module_dir,module,logging_text)  
-    else:
-        write_log_api(module_dir,session,StatusData,status_datas_schema,module,logging_text)
-    
-    floatarray = numpy.asarray(Features) 
-    arrayFrames = np.reshape(floatarray,(NumFrames,NumFeatures))
-    logging_text = ' Shape of frames created: '+str(arrayFrames.shape)    
-    if db_type == "File":
-        write_log_api_file(module_dir,module,logging_text)  
-    else:
-        write_log_api(module_dir,session,StatusData,status_datas_schema,module,logging_text)
+        write_log_api(module_dir, session, StatusData, status_datas_schema, 'prepareFeatureStream_1D_c', logging_text)
 
-    return arrayFrames                                                          # return a 3D- numpy array of frames
+    logging_text = ' No. of 1D frames: ' + str(int(NumFrames))    
+    if db_type == "File":
+        write_log_api_file(module_dir, 'prepareFeatureStream_1D_c', logging_text)  
+    else:
+        write_log_api(module_dir, session, StatusData, status_datas_schema, 'prepareFeatureStream_1D_c', logging_text)
+
+    logging_text = ' No. of remaining 1D features after the last frame: ' + str(int(NumRemainElements))    
+    if db_type == "File":
+        write_log_api_file(module_dir, 'prepareFeatureStream_1D_c', logging_text)  
+    else:
+        write_log_api(module_dir, session, StatusData, status_datas_schema, 'prepareFeatureStream_1D_c', logging_text)
+    
+    cdef numpy.ndarray floatarray = numpy.asarray(Features) 
+    cdef numpy.ndarray arrayFrames = numpy.reshape(floatarray, (NumFrames, NumFeatures))
+
+    logging_text = ' Shape of frames created: ' + str(arrayFrames.shape)    
+    if db_type == "File":
+        write_log_api_file(module_dir, 'prepareFeatureStream_1D_c', logging_text)  
+    else:
+        write_log_api(module_dir, session, StatusData, status_datas_schema, 'prepareFeatureStream_1D_c', logging_text)
+
+    return arrayFrames  # return a 3D- numpy array of frames                                                     # return a 3D- numpy array of frames
 
 cpdef prepareFeatureStream_2D_c(module_dir,db_type,session,StatusData,status_datas_schema,Features,int NumFeatures):                       # frame type values: 1D , 2D (for example I/Q data)
 
