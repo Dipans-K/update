@@ -28,91 +28,108 @@ import grpc
 import dongle_pb2
 import dongle_pb2_grpc
 
+# Switch variable to control configuration source
+# Set to "JSON" or "dotENV"
+config_source = "JSON"
+
+# Utility functions for dotENV
+def read_dotenv_param(param_name):
+    load_dotenv()
+    return os.getenv(param_name)
+
+def write_dotenv_param(param_name, param_value):
+    dotenv_file = os.path.join(os.getcwd(), ".env")
+    if os.path.exists(dotenv_file):
+        with open(dotenv_file, "a") as file:
+            file.write(f"{param_name}={param_value}\n")
+    else:
+        with open(dotenv_file, "w") as file:
+            file.write(f"{param_name}={param_value}\n")
+
 class WindowsServiceHelper():
     module_dir = ''
     ws = ''
     ws_flag = ''
     ws_ip = ''
     ws_port = ''
+
     def __init__(self, module_dir):
         self.module_dir = module_dir
         self.ws = self.__read_init_windows_service_param()
         self.ws_flag, self.ws_ip, self.ws_port = self.__function_wsl_ip()
 
     def __read_init_windows_service_param(self):
-        init_windows_service_param = self.module_dir+'/init_windows_service_param.json'
-        #print('init_windows_service_param: ', init_windows_service_param)
-        if os.path.exists(init_windows_service_param):
-            # read init file
-            file_name_lock = init_windows_service_param+'.lock'
-            lock_file_name = FileLock(file_name_lock)
-            with lock_file_name:
-                with open(init_windows_service_param, 'r') as myfile:
-                    data=myfile.read()
-            try:
-                os.remove(file_name_lock)
-            except:
-                pass
-            # parse file
-            obj = json.loads(data)
-            try:
-                ws = str(obj['ws'])
-            except:
+        if config_source == "JSON":
+            init_windows_service_param = self.module_dir + '/init_windows_service_param.json'
+            if os.path.exists(init_windows_service_param):
+                file_name_lock = init_windows_service_param + '.lock'
+                lock_file_name = FileLock(file_name_lock)
+                with lock_file_name:
+                    with open(init_windows_service_param, 'r') as myfile:
+                        data = myfile.read()
+                try:
+                    os.remove(file_name_lock)
+                except:
+                    pass
+                obj = json.loads(data)
+                ws = obj.get('ws', '')
+            else:
                 ws = ''
+        elif config_source == "dotENV":
+            ws = read_dotenv_param("ws")
         else:
-            ws = ''
+            raise ValueError("Invalid config source. Must be 'JSON' or 'dotENV'.")
         return ws
 
     def __function_wsl_ip(self):
         ws_flag = -1
-        if self.ws=='YES':
-            ws_flag=1
-            try:
-                with open(self.module_dir+'/windowsservice_config.json', 'r') as jsonFile:
+        ws_ip = '0.0.0.0'
+        ws_port = 55555
+
+        if self.ws == 'YES':
+            ws_flag = 1
+            if config_source == "JSON":
+                try:
+                    with open(self.module_dir + '/windowsservice_config.json', 'r') as jsonFile:
                         data = jsonFile.read()
                         obj = json.loads(data)
-                        ws_ip = str(obj['ws_ip'])
-                        ws_port = int(obj['ws_port'])
-            except:
-                ws_ip = '0.0.0.0'
-                ws_port = 55555
-                ws_flag = -2
+                        ws_ip = obj.get('ws_ip', '0.0.0.0')
+                        ws_port = int(obj.get('ws_port', 55555))
+                except:
+                    ws_ip = '0.0.0.0'
+                    ws_port = 55555
+                    ws_flag = -2
+            elif config_source == "dotENV":
+                try:
+                    ws_ip = read_dotenv_param("ws_ip") or '0.0.0.0'
+                    ws_port = int(read_dotenv_param("ws_port") or 55555)
+                except:
+                    ws_ip = '0.0.0.0'
+                    ws_port = 55555
+                    ws_flag = -2
         else:
-            ws_flag=0
-            ws_ip = '0.0.0.0'
-            ws_port = 55555
+            ws_flag = 0
+
         return ws_flag, ws_ip, str(ws_port)
 
-    def __is_licence_available(self, service_name): 
-
-        dongle_connection_address = None
-    
-        dongle_connection_address = self.ws_ip+':'+self.ws_port
-        #print('dongle_connection_address: ', dongle_connection_address)
-
+    def __is_licence_available(self, service_name):
+        dongle_connection_address = f"{self.ws_ip}:{self.ws_port}"
         channel = grpc.insecure_channel(dongle_connection_address)
         dongle_stub = dongle_pb2_grpc.DongleStub(channel)
-        
-        req_dongle = dongle_pb2.DongleRequest(application = service_name)  
-    
+        req_dongle = dongle_pb2.DongleRequest(application=service_name)
+
         licence_flag = None
         try:
             resp_dongle = dongle_stub.AskDongle(req_dongle)
-            #print(resp_dongle)
-            #print(resp_dongle.status)
             dongle_status = resp_dongle.status
-            if dongle_status == 'true':
-                licence_flag = True
-            else:
-                licence_flag = False
+            licence_flag = dongle_status == 'true'
         except:
             licence_flag = False
+
         return licence_flag
 
     def IsLicenceAvailable(self, service_name):
-        flag = self.__is_licence_available(service_name)
-        return flag
-
+        return self.__is_licence_available(service_name)
 def server_operation(server, WSH, service_name):
     try:                                                                               
         while True:
